@@ -25,6 +25,9 @@ jobs:
           scheme: ${{ 'default' }}
           platform: ${{ 'iOS Simulator' }}
         run: |
+          if [ $scheme = default ]; then scheme=$(cat default); fi
+          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
+          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
           device_udid=$(xcrun simctl list devices available -j | ruby -rjson -e 'data=JSON.parse(STDIN.read); devices=data.fetch("devices", {}).select { |runtime, _| runtime.start_with?("com.apple.CoreSimulator.SimRuntime.iOS-") }.values.flatten; device=devices.find { |d| d["isAvailable"] && d["name"].to_s.start_with?("iPhone") }; puts(device ? device["udid"] : "")')
           if [ -z "$device_udid" ]; then
             echo "No available iPhone simulator found via xcrun simctl."
@@ -32,16 +35,30 @@ jobs:
             xcrun simctl list devices available
             exit 1
           fi
-          echo "Using simulator UDID: $device_udid"
-          if [ $scheme = default ]; then scheme=$(cat default); fi
-          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
-          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
-          xcodebuild build-for-testing -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "id=$device_udid"
+          showdestinations_output=$(xcodebuild -showdestinations -scheme "$scheme" -"$filetype_parameter" "$file_to_build" 2>&1 || true)
+          if echo "$showdestinations_output" | grep -Fq "id:$device_udid"; then
+            destination="id=$device_udid"
+          elif echo "$showdestinations_output" | grep -Fq "name:Any iOS Simulator Device"; then
+            destination="platform=iOS Simulator,name=Any iOS Simulator Device"
+          else
+            echo "No compatible iOS Simulator destination found for the selected scheme."
+            echo "Preferred simulator UDID from simctl: $device_udid"
+            echo "xcodebuild -showdestinations output:"
+            echo "$showdestinations_output"
+            echo "Available simulators:"
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "Using destination: $destination"
+          xcodebuild build-for-testing -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "$destination"
       - name: Test
         env:
           scheme: ${{ 'default' }}
           platform: ${{ 'iOS Simulator' }}
         run: |
+          if [ $scheme = default ]; then scheme=$(cat default); fi
+          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
+          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
           device_udid=$(xcrun simctl list devices available -j | ruby -rjson -e 'data=JSON.parse(STDIN.read); devices=data.fetch("devices", {}).select { |runtime, _| runtime.start_with?("com.apple.CoreSimulator.SimRuntime.iOS-") }.values.flatten; device=devices.find { |d| d["isAvailable"] && d["name"].to_s.start_with?("iPhone") }; puts(device ? device["udid"] : "")')
           if [ -z "$device_udid" ]; then
             echo "No available iPhone simulator found via xcrun simctl."
@@ -49,8 +66,19 @@ jobs:
             xcrun simctl list devices available
             exit 1
           fi
-          echo "Using simulator UDID: $device_udid"
-          if [ $scheme = default ]; then scheme=$(cat default); fi
-          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
-          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
-          xcodebuild test-without-building -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "id=$device_udid"
+          showdestinations_output=$(xcodebuild -showdestinations -scheme "$scheme" -"$filetype_parameter" "$file_to_build" 2>&1 || true)
+          if echo "$showdestinations_output" | grep -Fq "id:$device_udid"; then
+            destination="id=$device_udid"
+          elif echo "$showdestinations_output" | grep -Fq "name:Any iOS Simulator Device"; then
+            destination="platform=iOS Simulator,name=Any iOS Simulator Device"
+          else
+            echo "No compatible iOS Simulator destination found for the selected scheme."
+            echo "Preferred simulator UDID from simctl: $device_udid"
+            echo "xcodebuild -showdestinations output:"
+            echo "$showdestinations_output"
+            echo "Available simulators:"
+            xcrun simctl list devices available
+            exit 1
+          fi
+          echo "Using destination: $destination"
+          xcodebuild test-without-building -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "$destination"
