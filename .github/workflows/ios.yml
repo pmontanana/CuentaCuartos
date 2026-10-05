@@ -39,7 +39,7 @@ jobs:
           if echo "$showdestinations_output" | grep -Fq "id:$device_udid"; then
             destination="id=$device_udid"
           elif echo "$showdestinations_output" | grep -Fq "name:Any iOS Simulator Device"; then
-            destination="platform=iOS Simulator,name=Any iOS Simulator Device"
+            destination="generic/platform=iOS Simulator"
           else
             echo "No compatible iOS Simulator destination found for the selected scheme."
             echo "Preferred simulator UDID from simctl: $device_udid"
@@ -70,7 +70,7 @@ jobs:
           if echo "$showdestinations_output" | grep -Fq "id:$device_udid"; then
             destination="id=$device_udid"
           elif echo "$showdestinations_output" | grep -Fq "name:Any iOS Simulator Device"; then
-            destination="platform=iOS Simulator,name=Any iOS Simulator Device"
+            destination="generic/platform=iOS Simulator"
           else
             echo "No compatible iOS Simulator destination found for the selected scheme."
             echo "Preferred simulator UDID from simctl: $device_udid"
