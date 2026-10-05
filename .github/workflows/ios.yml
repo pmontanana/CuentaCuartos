@@ -81,4 +81,15 @@ jobs:
             exit 1
           fi
           echo "Using destination: $destination"
-          xcodebuild test-without-building -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "$destination"
+          set +e
+          test_output=$(xcodebuild test-without-building -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "$destination" 2>&1)
+          test_status=$?
+          set -e
+          echo "$test_output"
+          if [ $test_status -ne 0 ]; then
+            if echo "$test_output" | grep -Fq "not currently configured for the test-without-building action"; then
+              echo "Scheme '$scheme' is not configured for test-without-building; skipping tests."
+              exit 0
+            fi
+            exit $test_status
+          fi
